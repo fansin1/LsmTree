@@ -6,7 +6,14 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
 
     var converter = object: TreeNodeConverter<Node<K, V>> {
         override fun name(t: Node<K, V>?): String {
-            return t?.value.toString()
+            return if (t != null) {
+                if (t.isTombstone) {
+                    "deleted ${t.value.toString()}"
+                } else {
+                    t.value.toString()
+                }
+            } else
+                ""
         }
 
         override fun children(t: Node<K, V>?): MutableList<Node<K, V>?> {
@@ -145,33 +152,18 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
         }
     }
 
-    private fun delete(node: Node<K, V>?, key: K): Node<K, V>? {
+    private fun find(node: Node<K, V>?, key: K): Node<K, V>? {
         if (node == null) return null
 
-        when {
-            comp.compare(key, node.key) < 0 -> node.left = delete(node.left, key)
-            comp.compare(key, node.key) > 0 -> node.right = delete(node.right, key)
-            else -> {
-                val q = node.left
-                val r = node.right
-                if (r == null) {
-                    q?.parent = node.parent
-                    return q
-                }
-                deleteNode(node)
-                val min = findMin(r)
-                min.right = deleteMin(r)
-                min.left = q
-                min.left?.parent = min
-                min.right?.parent = min
-                min.parent = node.parent
-
-
-                return balance(min)
-            }
+        return when {
+            comp.compare(key, node.key) == 0 -> node
+            comp.compare(key, node.key) < 0 -> find(node.left, key)
+            else -> find(node.right, key)
         }
+    }
 
-        return balance(node)
+    fun find(key: K): Node<K, V>? {
+        return find(root, key)
     }
 
     fun insert(key: K, value: V) {
@@ -179,7 +171,9 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
     }
 
     fun delete(key: K) {
-        root = delete(root, key)
+        val node = find(key)
+        if (node != null)
+            node.isTombstone = true
     }
 
     fun printRoot() {

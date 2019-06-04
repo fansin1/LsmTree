@@ -8,11 +8,11 @@ object Main {
             val line = readLine() ?: ""
             val lArgs = line.split(' ')
             when (lArgs[0].trim()) {
-                "ins" -> avl.insert(Integer.parseInt(lArgs[1].trim()), lArgs[1].trim())
+                "ins" -> avl.insert(Integer.parseInt(lArgs[1].trim()), lArgs[2].trim())
                 "del" -> avl.delete(Integer.parseInt(lArgs[1].trim()))
                 "print" -> avl.printRoot()
+                "find" -> print((avl.find(Integer.parseInt(lArgs[1].trim()))?.value  ?: "Not found") +  "\n")
             }
         }
-
     }
 }
