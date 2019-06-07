@@ -25,8 +25,8 @@ object Main {
             when (lArgs[0].trim()) {
                 "ins" -> lsm.insert(Integer.parseInt(lArgs[1].trim()), lArgs[2].trim())
                 "rem" -> lsm.remove(Integer.parseInt(lArgs[1].trim()))
-                "print" -> lsm.printRoot()
                 "find" -> print((lsm.getNode(Integer.parseInt(lArgs[1].trim()))) + "\n")
+                "print" -> lsm.printRoot()
             }
         }
     }
