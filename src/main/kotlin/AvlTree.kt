@@ -146,12 +146,13 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
 
     private fun insert(node: Node<K, V?>?, key: K, value: V?, isTombstone: Boolean): Node<K, V?> {
         if (node == null) {
-            return Node(key, value)
+            return Node(key, value, isTombstone = isTombstone)
         }
 
         when {
             comp.compare(key, node.key) == 0 -> {
                 node.value = value
+                node.isTombstone = isTombstone
             }
             comp.compare(key, node.key) < 0 -> {
                 node.left = insert(node.left, key, value, isTombstone)
@@ -249,7 +250,6 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
                 this!!.value = value
                 this.isTombstone = isTombstone
             }
-
             true
         }
 
