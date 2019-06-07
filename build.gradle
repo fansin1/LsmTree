@@ -14,8 +14,8 @@ repositories {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation "au.com.console:kassava:2.0.0"
     implementation "io.bretty:console-tree-builder:2.0"
+    implementation "com.google.guava:guava:27.1-jre"
 }
 
 compileKotlin {
