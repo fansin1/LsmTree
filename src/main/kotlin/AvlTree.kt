@@ -9,12 +9,12 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
     private var maxKey: K? = null
 
     override fun contains(element: Node<K, V?>): Boolean {
-        return find(element.key) == element
+        return find(element.key)?.value == element.value
     }
 
     override fun containsAll(elements: Collection<Node<K, V?>>): Boolean {
         for (i in elements) {
-            if (find(i.key) != i)
+            if (find(i.key)?.value != i.value)
                 return false
         }
 
@@ -42,7 +42,7 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
         }
 
         override fun hasNext(): Boolean {
-            return node?.key != maxKey
+            return node != null && node?.key != maxKey
         }
 
         override fun next(): Node<K, V?> {
@@ -257,7 +257,9 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
     }
 
     fun insert(key: K, value: V?, isTombstone: Boolean = false) {
-        if (comp.compare(key, maxKey) > 0)
+        if (maxKey == null)
+            maxKey = key
+        else if (comp.compare(key, maxKey) > 0)
             maxKey = key
 
         _root = insert(_root, key, value, isTombstone)

@@ -136,7 +136,12 @@ class LsmTree(val maxHeight: Int){
     }
 
     fun getNode(key: Int): String? {
-        var value = _avl.find(key)?.value
+        val node = _avl.find(key)
+
+        if (node?.isTombstone == true)
+            return null
+
+        var value = node?.value
 
         if (value == null) {
             for (i in _lsmFiles) {
