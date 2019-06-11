@@ -1,45 +1,72 @@
 import io.bretty.console.tree.TreeNodeConverter
 import io.bretty.console.tree.TreePrinter
 
-class AvlTree<K, V> (var comp: Comparator<K>) {
+class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
+    override var size: Int = 0
 
-    inner class Iterator {
-        var node: Node<K, V?>?  = null
+    private var _root: Node<K, V?>? = null
 
-        init {
-            toStart()
+    private var maxKey: K? = null
+
+    override fun contains(element: Node<K, V?>): Boolean {
+        return find(element.key) == element
+    }
+
+    override fun containsAll(elements: Collection<Node<K, V?>>): Boolean {
+        for (i in elements) {
+            if (find(i.key) != i)
+                return false
         }
 
-        fun toStart() {
+        return true
+    }
+
+    override fun isEmpty(): Boolean {
+        return size == 0
+    }
+
+    override fun iterator(): kotlin.collections.Iterator<Node<K, V?>> {
+        return Iterator()
+    }
+
+    private inner class Iterator: kotlin.collections.Iterator<Node<K, V?>> {
+        private var node: Node<K, V?>?  = null
+
+        init {
             node = _root
             while (node?.left != null) {
                 node =  node?.left
             }
+            if (node != null)
+                node = Node(node!!.key, node!!.value, 1, right = node)
         }
 
-        fun next(): Node<K, V?>? {
-            if (node != null) {
-                if (node!!.right == null) {
-                    while (node!!.parent != null && node!!.parent!!.right == node) {
-                         node =  node!!.parent
-                    }
+        override fun hasNext(): Boolean {
+            return node?.key != maxKey
+        }
 
-                    if (node!!.parent != null)  {
-                        node = node!!.parent
-                    } else {
-                        node = null
-                    }
-                }  else {
-                    node = node!!.right
-                    while (node!!.left != null) {
-                        node = node!!.left
-                    }
+        override fun next(): Node<K, V?> {
+            if (node!!.right == null) {
+                while (node!!.parent != null && node!!.parent!!.right == node) {
+                     node =  node!!.parent
                 }
 
-                return node
-            } else {
-                return null
+                node = if (node!!.parent != null)  {
+                    node!!.parent
+                } else {
+                    null
+                }
+            }  else {
+                node = node!!.right
+                while (node!!.left != null) {
+                    node = node!!.left
+                }
             }
+
+            if (node != null)
+                return node!!
+            else
+                throw NoSuchElementException()
         }
     }
 
@@ -69,13 +96,6 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
             return res
         }
     }
-
-    private var _root: Node<K, V?>? = null
-
-    data class Node<K, V>(val key: K, var value: V?, var height: Int = 1,
-                          var left: Node<K, V?>? = null, var right: Node<K, V?>? = null,
-                          var parent: Node<K, V?>? = null, var isTombstone: Boolean = false,
-                          var isUpdate: Boolean = false, var isWritten: Boolean = false)
 
     private fun height(node: Node<K, V?>?) = node?.height ?: 0
 
@@ -146,6 +166,7 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
 
     private fun insert(node: Node<K, V?>?, key: K, value: V?, isTombstone: Boolean): Node<K, V?> {
         if (node == null) {
+            size++
             return Node(key, value, isTombstone = isTombstone)
         }
 
@@ -236,6 +257,9 @@ class AvlTree<K, V> (var comp: Comparator<K>) {
     }
 
     fun insert(key: K, value: V?, isTombstone: Boolean = false) {
+        if (comp.compare(key, maxKey) > 0)
+            maxKey = key
+
         _root = insert(_root, key, value, isTombstone)
     }
 

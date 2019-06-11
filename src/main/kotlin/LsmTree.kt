@@ -13,7 +13,7 @@ class LsmTree(val maxHeight: Int){
         }
 
     @Suppress("UnstableApiUsage")
-    inner class LsmFile {
+    private inner class LsmFile {
 
         private var _id = _fileId
 
@@ -25,26 +25,26 @@ class LsmTree(val maxHeight: Int){
 
         private var _changed = false
 
-        private var _newNodes = mutableListOf<AvlTree.Node<Int, String?>>()
+        private var _newNodes = mutableListOf<Node<Int, String?>>()
 
-        private var _tombstones = mutableListOf<AvlTree.Node<Int, String?>>()
+        private var _tombstones = mutableListOf<Node<Int, String?>>()
 
         fun height(): Int = _tree?.height() ?: _lastHeight + (if (_newNodes.size > 0) log2(_newNodes.size.toDouble()).toInt() else 0)
 
-        fun insert(node: AvlTree.Node<Int, String?>) {
+        fun insert(node: Node<Int, String?>) {
             _changed = true
             _newNodes.add(node)
             _filter.put(node.key)
             node.isWritten = true
         }
 
-        fun update(node: AvlTree.Node<Int, String?>) {
+        fun update(node: Node<Int, String?>) {
             _changed = true
             node.isUpdate = true
             _newNodes.add(node)
         }
 
-        fun remove(node: AvlTree.Node<Int, String?>) {
+        fun remove(node: Node<Int, String?>) {
             _changed = true
             _tombstones.add(node)
         }
@@ -70,28 +70,27 @@ class LsmTree(val maxHeight: Int){
                     readFile()
 
                 for (i in _newNodes)
-                    when {
-                        i.isUpdate -> if (_tree!!.update(i.key, i.value, i.isTombstone)) i.isWritten = true
+                    when (i.isUpdate) {
+                        true -> if (_tree!!.update(i.key, i.value, i.isTombstone)) i.isWritten = true
                         else -> _tree!!.insert(i.key, i.value)
                     }
 
-                for (i in _tombstones)
-                    _tree!!.delete(i.key)
+                _tombstones.forEach {
+                    _tree!!.delete(it.key)
+                }
 
                 _newNodes.clear()
                 _lastHeight = _tree!!.height()
 
                 try {
                     File("$_id.txt").printWriter().use{ out ->
-                        val it = _tree!!.Iterator()
-                        var node = it.node
+                        val it = _tree!!.iterator()
 
-                        while (node != null) {
+                        while (it.hasNext()) {
+                            val node = it.next()
                             out.println("${node.key} ${node.value}")
-                            node = it.next()
                         }
                     }
-
                 } catch (e: IOException) {
                     e.printStackTrace()
                 }
@@ -154,14 +153,13 @@ class LsmTree(val maxHeight: Int){
 
     private fun merge() {
 
-        val iterator = _avl.Iterator()
+        var iterator = _avl.iterator()
 
-        if (iterator.node == null)
+        if (!iterator.hasNext())
             return
 
-        var node: AvlTree.Node<Int, String?>? = iterator.node!!
-
-        while (node != null) {
+        while (iterator.hasNext()) {
+            val node = iterator.next()
             for (i in _lsmFiles) {
                 if (i.maybeHaveNode(node.key)) {
                     if (!node.isTombstone) {
@@ -171,15 +169,14 @@ class LsmTree(val maxHeight: Int){
                     }
                 }
             }
-            node = iterator.next()
         }
 
         _lsmFiles.forEach { it.writeFile() }
 
-        iterator.toStart()
-        node = iterator.node
+        iterator = _avl.iterator()
 
-        while (node != null) {
+        while (iterator.hasNext()) {
+            val node = iterator.next()
             if (!node.isWritten && !node.isTombstone) {
                 if (_lsmFiles.last().height() < maxHeight) {
                     _lsmFiles.last().insert(node)
@@ -188,7 +185,7 @@ class LsmTree(val maxHeight: Int){
                     _lsmFiles.last().insert(node)
                 }
             }
-            node = iterator.next()
+
         }
 
         _lsmFiles.forEach { it.writeFile() }
