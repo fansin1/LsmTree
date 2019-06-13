@@ -69,11 +69,15 @@ class LsmTree(val maxHeight: Int){
                 if (_tree == null)
                     readFile()
 
-                for (i in _newNodes)
+                _filter = BloomFilter.create(Funnels.integerFunnel(), maxHeight.toDouble().pow(2).toInt() - 1, 0.01)
+
+                for (i in _newNodes) {
                     when (i.isUpdate) {
                         true -> if (_tree!!.update(i.key, i.value, i.isTombstone)) i.isWritten = true
                         else -> _tree!!.insert(i.key, i.value)
                     }
+                    _filter.put(i.key)
+                }
 
                 _tombstones.forEach {
                     _tree!!.delete(it.key)
