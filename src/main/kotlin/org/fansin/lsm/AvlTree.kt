@@ -1,8 +1,14 @@
+package org.fansin.lsm
+
 import io.bretty.console.tree.TreeNodeConverter
 import io.bretty.console.tree.TreePrinter
 
-class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
+/**
+ * Implementation of avl tree
+ */
+class AvlTree<K, V>(private var comp: Comparator<K>) : Collection<Node<K, V?>> {
     override var size: Int = 0
+        private set
 
     private var _root: Node<K, V?>? = null
 
@@ -14,8 +20,9 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
 
     override fun containsAll(elements: Collection<Node<K, V?>>): Boolean {
         for (i in elements) {
-            if (find(i.key)?.value != i.value)
+            if (find(i.key)?.value != i.value) {
                 return false
+            }
         }
 
         return true
@@ -29,48 +36,132 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
         return Iterator()
     }
 
-    private inner class Iterator: kotlin.collections.Iterator<Node<K, V?>> {
-        private var node: Node<K, V?>?  = null
+    /**
+     * @return height of tree
+     */
+    fun height(): Int {
+        return height(_root)
+    }
+
+    /**
+     * find node with such key
+     * @param key key of node, that need to find
+     * @return node with that key
+     */
+    fun find(key: K): Node<K, V?>? {
+        return find(_root, key)
+    }
+
+    /**
+     * add new node to tree
+     * @param key key of new node
+     * @param value value of new node
+     * @param isTombstone true if new node is tombstone
+     */
+    fun insert(key: K, value: V?, isTombstone: Boolean = false) {
+        if (maxKey == null) {
+            maxKey = key
+        } else if (comp.compare(key, maxKey) > 0) {
+            maxKey = key
+        }
+
+        _root = insert(_root, key, value, isTombstone)
+    }
+
+    /**
+     * set new value to node with that key
+     * @param key key of node
+     * @param value new value
+     * @return true if updated and false if didn't find node with that key
+     */
+    fun update(key: K, value: V?, isTombstone: Boolean = false): Boolean {
+        val f = find(key)
+
+        return if (f == null) {
+            false
+        } else {
+            find(key).apply {
+                this!!.value = value
+                this.isTombstone = isTombstone
+            }
+            true
+        }
+    }
+
+    /**
+     * make node with that key tombstone
+     * @param key key of node that need to make tombstone
+     */
+    fun makeTombstone(key: K) {
+        val node = find(key)
+        if (node != null) {
+            node.isTombstone = true
+        } else {
+            insert(key, null, true)
+        }
+    }
+
+    /**
+     * delete node with that key
+     * @param key key of node that need to delete
+     */
+    fun delete(key: K) {
+        _root = delete(_root, key)
+    }
+
+    /**
+     * print tree
+     */
+    fun printRoot() {
+        print(toString())
+    }
+
+    override fun toString(): String {
+        return TreePrinter.toString(_root, _converter)
+    }
+
+    private inner class Iterator : kotlin.collections.Iterator<Node<K, V?>> {
+        private var node: Node<K, V?>? = null
 
         init {
             node = _root
             while (node?.left != null) {
-                node =  node?.left
+                node = node?.left
             }
-            if (node != null)
+            if (node != null) {
                 node = Node(node!!.key, node!!.value, 1, right = node)
+            }
         }
 
-        override fun hasNext(): Boolean {
-            return node != null && node?.key != maxKey
-        }
+        override fun hasNext(): Boolean = (node != null && node?.key != maxKey)
 
         override fun next(): Node<K, V?> {
             if (node!!.right == null) {
                 while (node!!.parent != null && node!!.parent!!.right == node) {
-                     node =  node!!.parent
+                    node = node!!.parent
                 }
 
-                node = if (node!!.parent != null)  {
+                node = if (node!!.parent != null) {
                     node!!.parent
                 } else {
                     null
                 }
-            }  else {
+            } else {
                 node = node!!.right
                 while (node!!.left != null) {
                     node = node!!.left
                 }
             }
 
-            if (node != null)
+            if (node != null) {
                 return node!!
-            else
+            } else {
                 throw NoSuchElementException()
+            }
         }
     }
 
-    private var _converter = object: TreeNodeConverter<Node<K, V?>> {
+    private var _converter = object : TreeNodeConverter<Node<K, V?>> {
         override fun name(t: Node<K, V?>?): String {
             return if (t != null) {
                 if (t.isTombstone) {
@@ -78,28 +169,37 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
                 } else {
                     t.value.toString()
                 }
-            } else
+            } else {
                 ""
+            }
         }
 
         override fun children(t: Node<K, V?>?): MutableList<Node<K, V?>?> {
             val res = mutableListOf<Node<K, V?>?>()
 
-            if (t == null) return res
+            if (t == null) {
+                return res
+            }
 
-            if (t.left != null)
+            if (t.left != null) {
                 res.add(t.left)
+            }
 
-            if (t.right !=  null)
+            if (t.right != null) {
                 res.add(t.right)
+            }
 
             return res
         }
     }
 
-    private fun height(node: Node<K, V?>?) = node?.height ?: 0
+    private fun height(node: Node<K, V?>?): Int {
+        return node?.height ?: 0
+    }
 
-    private fun balanceFactor(node: Node<K, V?>) = height(node.right) - height(node.left)
+    private fun balanceFactor(node: Node<K, V?>): Int {
+        return height(node.right) - height(node.left)
+    }
 
     private fun fixHeight(node: Node<K, V?>) {
         val leftHeight = height(node.left)
@@ -189,11 +289,17 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
     }
 
     private fun findMin(node: Node<K, V?>): Node<K, V?> {
-        return if (node.left != null) findMin(node.left!!) else node
+        return if (node.left != null) {
+            findMin(node.left!!)
+        } else {
+            node
+        }
     }
 
     private fun deleteMin(node: Node<K, V?>?): Node<K, V?>? {
-        if (node!!.left == null) return node.right
+        if (node!!.left == null) {
+            return node.right
+        }
 
         node.right = deleteMin(node.left!!)
         node.right!!.parent = node
@@ -239,62 +345,11 @@ class AvlTree<K, V> (var comp: Comparator<K>): Collection<Node<K, V?>> {
     }
 
     private fun find(node: Node<K, V?>?, key: K): Node<K, V?>? {
-        if (node == null) return null
-
         return when {
+            node == null -> null
             comp.compare(key, node.key) == 0 -> node
             comp.compare(key, node.key) < 0 -> find(node.left, key)
             else -> find(node.right, key)
         }
     }
-
-    fun height(): Int {
-        return height(_root)
-    }
-
-    fun find(key: K): Node<K, V?>? {
-        return find(_root, key)
-    }
-
-    fun insert(key: K, value: V?, isTombstone: Boolean = false) {
-        if (maxKey == null)
-            maxKey = key
-        else if (comp.compare(key, maxKey) > 0)
-            maxKey = key
-
-        _root = insert(_root, key, value, isTombstone)
-    }
-
-    fun update(key: K, value: V?, isTombstone: Boolean): Boolean {
-
-        val f = find(key)
-
-        return if (f == null)
-            false
-        else {
-            find(key).apply {
-                this!!.value = value
-                this.isTombstone = isTombstone
-            }
-            true
-        }
-
-    }
-
-    fun makeTombstone(key: K) {
-        val node = find(key)
-        if (node != null)
-            node.isTombstone = true
-        else
-            insert(key, null, true)
-    }
-
-    fun delete(key: K) {
-        _root = delete(_root, key)
-    }
-
-    fun printRoot() {
-        print(TreePrinter.toString(_root, _converter))
-    }
-
 }

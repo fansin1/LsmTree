@@ -1,3 +1,5 @@
+package org.fansin.lsm
+
 import java.io.File
 
 object Main {
@@ -25,8 +27,8 @@ object Main {
             when (lArgs[0].trim()) {
                 "ins" -> lsm.insert(Integer.parseInt(lArgs[1].trim()), lArgs[2].trim())
                 "rem" -> lsm.remove(Integer.parseInt(lArgs[1].trim()))
-                "find" -> print((lsm.getNode(Integer.parseInt(lArgs[1].trim()))) + "\n")
-                "print" -> lsm.printRoot()
+                "find" -> print((lsm.getValue(Integer.parseInt(lArgs[1].trim()))) + "\n")
+                "print" -> lsm.printInMemoryRoot()
             }
         }
     }

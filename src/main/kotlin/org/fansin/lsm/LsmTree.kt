@@ -1,3 +1,5 @@
+package org.fansin.lsm
+
 import com.google.common.hash.BloomFilter
 import com.google.common.hash.Funnels
 import java.io.File
@@ -5,7 +7,12 @@ import java.io.IOException
 import kotlin.math.log2
 import kotlin.math.pow
 
-class LsmTree(val maxHeight: Int){
+/**
+ * Implementation of lsm tree, that based on avl tree
+ * @param maxHeight when avl tree in memory grow to that height
+ * it should be replaced to the file
+ */
+class LsmTree(private val maxHeight: Int) {
 
     private var _fileId = 0
         get() {
@@ -29,8 +36,21 @@ class LsmTree(val maxHeight: Int){
 
         private var _tombstones = mutableListOf<Node<Int, String?>>()
 
-        fun height(): Int = _tree?.height() ?: _lastHeight + (if (_newNodes.size > 0) log2(_newNodes.size.toDouble()).toInt() else 0)
+        /**
+         * @return height of tree in memory or in file
+         */
+        fun height(): Int {
+            return _tree?.height() ?: _lastHeight +
+                        if (_newNodes.size > 0) {
+                            log2(_newNodes.size.toDouble()).toInt()
+                        } else {
+                            0
+                        }
+        }
 
+        /**
+         * insert node in memory
+         */
         fun insert(node: Node<Int, String?>) {
             _changed = true
             _newNodes.add(node)
@@ -38,21 +58,35 @@ class LsmTree(val maxHeight: Int){
             node.isWritten = true
         }
 
+        /**
+         * update node in memory
+         */
         fun update(node: Node<Int, String?>) {
             _changed = true
             node.isUpdate = true
             _newNodes.add(node)
         }
 
+        /**
+         * remove node from memory
+         */
         fun remove(node: Node<Int, String?>) {
             _changed = true
             _tombstones.add(node)
         }
 
+        /**
+         * @return true if have a chance that node with that key exists and false if don't have 100%
+         */
         fun maybeHaveNode(key: Int): Boolean {
             return _filter.mightContain(key)
         }
 
+        /**
+         * find value by key
+         * @param key key associated with value, that need to find
+         * @return value that associated with key
+         */
         fun find(key: Int): String? {
             if (_tree == null)
                 readFile()
@@ -64,16 +98,21 @@ class LsmTree(val maxHeight: Int){
             return value
         }
 
+        /**
+         * write all changes to file
+         */
         fun writeFile() {
             if (_changed) {
-                if (_tree == null)
+                if (_tree == null) {
                     readFile()
+                }
 
-                for (i in _newNodes)
+                for (i in _newNodes) {
                     when (i.isUpdate) {
                         true -> if (_tree!!.update(i.key, i.value, i.isTombstone)) i.isWritten = true
                         else -> _tree!!.insert(i.key, i.value)
                     }
+                }
 
                 _tombstones.forEach {
                     _tree!!.delete(it.key)
@@ -82,14 +121,15 @@ class LsmTree(val maxHeight: Int){
                 //We can't delete elements from Bloom Filter, so we create it again
                 _filter = BloomFilter.create(Funnels.integerFunnel(), maxHeight.toDouble().pow(2).toInt() - 1, 0.01)
 
-                for (i in _tree!!)
+                for (i in _tree!!) {
                     _filter.put(i.key)
+                }
 
                 _newNodes.clear()
                 _lastHeight = _tree!!.height()
 
                 try {
-                    File("$_id.txt").printWriter().use{ out ->
+                    File("$_id.txt").printWriter().use { out ->
                         val it = _tree!!.iterator()
 
                         while (it.hasNext()) {
@@ -107,7 +147,7 @@ class LsmTree(val maxHeight: Int){
         }
 
         private fun readFile() {
-            _tree = AvlTree(Comparator { o1, o2 -> o1.minus(o2) } )
+            _tree = AvlTree(Comparator { o1, o2 -> o1.minus(o2) })
             try {
                 val file = File("$_id.txt")
                 if (file.exists())
@@ -124,28 +164,48 @@ class LsmTree(val maxHeight: Int){
     private var _avl = AvlTree<Int, String>(Comparator { o1, o2 -> o1.minus(o2) })
     private var _lsmFiles = mutableListOf(LsmFile())
 
+    /**
+     * insert new node
+     * @param key key of new node
+     * @param value value of new node
+     */
     fun insert(key: Int, value: String) {
         _avl.insert(key, value)
 
-        if (_avl.height() > maxHeight)
+        if (_avl.height() > maxHeight) {
             merge()
+        }
     }
 
+    /**
+     * remove node with such key
+     * @param key key of node that need to remove
+     */
     fun remove(key: Int) {
         _avl.makeTombstone(key)
-        if (_avl.height() > maxHeight)
+        if (_avl.height() > maxHeight) {
             merge()
+        }
     }
 
-    fun printRoot() {
+    /**
+     * print tree that contains in memory, not in file
+     */
+    fun printInMemoryRoot() {
         _avl.printRoot()
     }
 
-    fun getNode(key: Int): String? {
+    /**
+     * get value that associated with that key
+     * @param key key that associated with value, that we need
+     * @return value that associated with that key
+     */
+    fun getValue(key: Int): String? {
         val node = _avl.find(key)
 
-        if (node?.isTombstone == true)
+        if (node?.isTombstone == true) {
             return null
+        }
 
         var value = node?.value
 
@@ -153,8 +213,10 @@ class LsmTree(val maxHeight: Int){
             for (i in _lsmFiles) {
                 if (i.maybeHaveNode(key)) {
                     value = i.find(key)
-                    if (value != null)
+
+                    if (value != null) {
                         break
+                    }
                 }
             }
         }
@@ -166,8 +228,9 @@ class LsmTree(val maxHeight: Int){
 
         var iterator = _avl.iterator()
 
-        if (!iterator.hasNext())
+        if (!iterator.hasNext()) {
             return
+        }
 
         while (iterator.hasNext()) {
             val node = iterator.next()
@@ -182,7 +245,7 @@ class LsmTree(val maxHeight: Int){
             }
         }
 
-        _lsmFiles.forEach { it.writeFile() }
+        _lsmFiles.forEach(LsmFile::writeFile)
 
         iterator = _avl.iterator()
 
@@ -199,7 +262,7 @@ class LsmTree(val maxHeight: Int){
 
         }
 
-        _lsmFiles.forEach { it.writeFile() }
+        _lsmFiles.forEach(LsmFile::writeFile)
         _avl = AvlTree(Comparator { o1, o2 -> o1.minus(o2) })
     }
 }
